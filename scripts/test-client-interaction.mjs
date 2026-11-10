@@ -189,6 +189,18 @@ function buildCtx() {
 	let panelDef = null;
 	let panelComp = null;
 	let rowDef = null;
+	const serviceTable = {
+		sessions: {
+			async create(args) { calls.push({ kind: "create", args: args }); return "sess-new"; }
+		},
+		// 客户端模型选择走 Remote 命名空间（官方 ui-model-selection 即 ctx.remote.session.selectModel）
+		remote: {
+			session: {
+				async selectModel(args) { calls.push({ kind: "selectModel", args: args }); return { ok: true, value: undefined }; }
+			}
+		},
+		uiWorkspace: { openSession(id) { calls.push({ kind: "openSession", id: id }); } }
+	};
 	const ctx = {
 		effect(fn) { fn(); },
 		locale: {
@@ -196,18 +208,11 @@ function buildCtx() {
 			bind() { return fakeT; }
 		},
 		inject(deps, cb) {
-			const services = {
-				sessions: {
-					async create(args) { calls.push({ kind: "create", args: args }); return "sess-new"; },
-					async selectModel(args) { calls.push({ kind: "selectModel", args: args }); }
-				},
-				uiWorkspace: { openSession(id) { calls.push({ kind: "openSession", id: id }); } }
-			};
 			const scoped = {};
-			deps.forEach(function (dep) { scoped[dep] = services[dep]; });
+			deps.forEach(function (dep) { scoped[dep] = serviceTable[dep]; });
 			cb(scoped);
 		},
-		get() { return null; },
+		get(name) { return serviceTable[name] || null; },
 		slots: {
 			inject(name, cb) { return cb(); },
 			register(def, comp) {

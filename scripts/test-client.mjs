@@ -75,8 +75,12 @@ assert.strictEqual(typeof mod.apply, "function");
 const calls = [];
 const fakeServices = {
 	sessions: {
-		async create(args) { calls.push(["create", args]); return "sess-1"; },
-		async selectModel(args) { calls.push(["selectModel", args]); }
+		async create(args) { calls.push(["create", args]); return "sess-1"; }
+	},
+	remote: {
+		session: {
+			async selectModel(args) { calls.push(["selectModel", args]); return { ok: true, value: undefined }; }
+		}
 	},
 	uiWorkspace: {
 		openSession(id) { calls.push(["openSession", id]); }
@@ -171,10 +175,8 @@ assert.ok(createThrown && /boom-create/.test(createThrown.message), "create 失�
 calls.length = 0;
 mod.apply(makeCtx({
 	services: {
-		sessions: {
-			async create() { return "sess-x"; },
-			async selectModel() { throw new Error("boom-model"); }
-		},
+		sessions: { async create() { return "sess-x"; } },
+		remote: { session: { async selectModel() { throw new Error("boom-model"); } } },
 		uiWorkspace: fakeServices.uiWorkspace
 	}
 }));
@@ -186,6 +188,16 @@ try {
 }
 assert.ok(modelThrown && /项目默认模型应用失败/.test(modelThrown.message), "selectModel 失败应可读");
 assert.ok(calls.every(function (call) { return call[0] !== "openSession"; }), "selectModel 失败后不应打开会话");
+
+// ── 缺 remote.session.selectModel：同样可读报错，不静默 ──
+mod.apply(makeCtx({ services: { sessions: { async create() { return "sess-y"; } }, remote: null } }));
+let noWire = null;
+try {
+	await panelDef.inject().createSession("ws-5", { provider: "p", model: "m" });
+} catch (error) {
+	noWire = error;
+}
+assert.ok(noWire && /模型选择接口/.test(noWire.message), "缺 remote.session.selectModel 时应可读报错");
 
 // ── 首帧渲染：面板/侧栏组件都能渲染 ─────────────────────
 mod.apply(makeCtx());

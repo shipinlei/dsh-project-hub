@@ -147,7 +147,9 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 	/* ── HTTP（契约见 docs/接口约定.md） ───────────────────── */
 	function apiUrl(path) {
 		try {
-			return new URL(String(path).replace(/^\/+/, ""), document.baseURI).pathname;
+			var url = new URL(String(path).replace(/^\/+/, ""), document.baseURI);
+			// 必须保留 query（/rules?workspaceId=... 依赖它），只丢掉 hash。
+			return url.pathname + url.search;
 		} catch (error) {
 			return path;
 		}
@@ -778,16 +780,23 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 			if (!sessionId || typeof sessionId !== "string") throw new Error("新建会话失败：会话服务未返回会话 id");
 			var provider = defaults && defaults.provider;
 			var model = defaults && defaults.model;
-			if (provider && model && typeof sessions.selectModel === "function") {
+			if (provider && model) {
+				// 客户端没有 sessions.selectModel；官方模型选择走 Remote 命名空间 ctx.remote.session.selectModel。
+				var remote = readService("remote");
+				var wire = remote && remote.session;
+				if (!wire || typeof wire.selectModel !== "function") {
+					throw new Error("当前宿主未提供模型选择接口（remote.session.selectModel），无法套用项目默认模型（会话已创建，可在展开的会话列表中打开）");
+				}
 				try {
 					var selection = { sessionId: sessionId, provider: provider, model: model };
 					if (defaults.reasoningEffort) selection.reasoningEffort = defaults.reasoningEffort;
-					await sessions.selectModel(selection);
+					var result = await wire.selectModel(selection);
+					if (result && result.ok === false) {
+						throw new Error((result.error && (result.error.code + ": " + result.error.message)) || "模型选择被宿主拒绝");
+					}
 				} catch (error) {
 					throw new Error("项目默认模型应用失败：" + messageOf(error) + "（会话已创建，可在展开的会话列表中打开）");
 				}
-			} else if (provider && model) {
-				console.warn("[dsh-project-hub] 宿主未提供 sessions.selectModel，跳过项目默认模型");
 			}
 			var uiWorkspace = readService("uiWorkspace");
 			if (!uiWorkspace || typeof uiWorkspace.openSession !== "function") throw new Error("当前宿主未提供界面导航服务（uiWorkspace），无法打开新会话");
@@ -812,10 +821,12 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 		}
 
 		function servicesReady() {
+			var remote = readService("remote");
 			return {
 				sessions: !!readService("sessions"),
 				uiWorkspace: !!readService("uiWorkspace"),
-				layout: !!layout
+				layout: !!layout,
+				modelSelection: !!(remote && remote.session && typeof remote.session.selectModel === "function")
 			};
 		}
 

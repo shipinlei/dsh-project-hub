@@ -117,7 +117,12 @@ const calls = { created: [], selection: null, opened: [] }
 const services = {
   sessions: {
     create: async (args) => { calls.created.push(args); return 'session-new-1' },
-    selectModel: async (args) => { calls.selection = args },
+  },
+  // 客户端模型选择走 Remote 命名空间（官方 ui-model-selection 即 ctx.remote.session.selectModel）
+  remote: {
+    session: {
+      selectModel: async (args) => { calls.selection = args; return { ok: true, value: undefined } },
+    },
   },
   uiWorkspace: { openSession: (id) => calls.opened.push(id), startSession: () => {} },
   layout: { panelInfo: { getSnapshot: () => ({ activePanelId: null }) }, selectPanel: () => {} },
@@ -209,6 +214,17 @@ check('新建会话 => create(workspaceId, agentPreset) → selectModel(provider
   if (calls.selection?.provider !== 'deepseek-official' || calls.selection?.model !== 'deepseek-flash') throw new Error('selectModel 参数不对')
   if (calls.selection?.reasoningEffort !== 'high') throw new Error(`reasoningEffort = ${calls.selection?.reasoningEffort}`)
   if (calls.opened[0] !== 'session-new-1') throw new Error(`openSession = ${calls.opened[0]}`)
+})
+
+/* ── 7b. 项目规则：断言 query 未被丢弃（回归 apiUrl 丢 search 的 bug） ── */
+const rulesButton = buttons.filter((button) => (button.textContent ?? '').includes('项目规则'))[0]
+rulesButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+await wait(150)
+check('项目规则请求带 workspaceId 并渲染 AGENTS.md 预览', () => {
+  const call = requests.find((item) => item.url.includes('/api/rules'))
+  if (!call) throw new Error('没有请求 /api/rules')
+  if (!call.url.includes('workspaceId=')) throw new Error(`query 丢失：${call.url}`)
+  if (!text().includes('# 项目规则')) throw new Error('没有渲染规则片段')
 })
 
 /* ── 8. 汇总 ─────────────────────────────────────────────── */
