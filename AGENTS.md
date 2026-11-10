@@ -18,11 +18,13 @@
   node scripts/test-host.mjs
   node scripts/test-client.mjs client/client.js
   node scripts/test-client-interaction.mjs client/client.js
+  # 真实 React + jsdom 渲染（依赖装在临时目录，见脚本头注释）
+  $env:PH_RENDER_MODULES="$env:TEMP\ph-render"; node scripts/test-client-dom.mjs client/client.js
   ```
 - 客户端改动后需要 `plugin_manager(set_plugin, target="include:dsh-project-hub", enabled=false→true)` 重载插件、再刷新页面，才会下发新 bundle。
 - 运行期自检：`GET http://127.0.0.1:14215/dsh-project-hub/api/health`。
 
 ## 提交前
 
-- `node --check` 全部通过，三个测试脚本全绿；
+- `node --check` 全部通过，四个测试脚本全绿；
 - 更新 `docs/验收记录.md` 对应行的证据。

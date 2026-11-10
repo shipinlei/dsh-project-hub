@@ -75,9 +75,11 @@ curl http://127.0.0.1:14215/dsh-project-hub/api/health
 - 自检：
   ```powershell
   node --check lib/state.js lib/index.js client/client.js scripts/test-host.mjs
-  node scripts/test-host.mjs                              # 15 项宿主契约
+  node scripts/test-host.mjs                              # 16 项宿主契约
   node scripts/test-client.mjs client/client.js           # bundle 加载/注册冒烟
   node scripts/test-client-interaction.mjs client/client.js  # 面板交互全链路
+  # 真实 React 18 + jsdom 离屏渲染（依赖按脚本头注释装到临时目录）
+  $env:PH_RENDER_MODULES="$env:TEMP\ph-render"; node scripts/test-client-dom.mjs client/client.js
   ```
 - 运行期健康检查（免登录，仅回环）：`GET /dsh-project-hub/api/health`
   —— 含 `client.registered` / `client.rev`、`memory.storageScope`、`profileSource`、`clientEvents.last`。
