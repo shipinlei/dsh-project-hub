@@ -80,8 +80,10 @@ curl http://127.0.0.1:14215/dsh-project-hub/api/health
   node scripts/test-client-interaction.mjs client/client.js  # 面板交互全链路
   ```
 - 运行期健康检查（免登录，仅回环）：`GET /dsh-project-hub/api/health`
-  —— 含 `client.registered` / `client.rev`、`memory.storageScope`、`profileSource`。
+  —— 含 `client.registered` / `client.rev`、`memory.storageScope`、`profileSource`、`clientEvents.last`。
   客户端 bundle 的实际下发地址是 `GET /plugins/??dsh-project-hub/client.js&rev=<rev>`。
+- 渲染器自检：面板加载成功后客户端会 `POST /client-report`（mounted / panel-view），
+  刷新页面后 `/health.clientEvents.last` 就能确认"渲染器真的加载了面板、真实数据条数"，无需人工描述。
 - 重载 host 侧代码：`plugin_manager(set_plugin, target="include:dsh-project-hub", enabled=false)` 再 `true`（热重载），或重启应用。
 - 客户端代码改动后：重载插件（刷新 clientModules 缓存）→ 页面刷新；改动过 client 文件后必须重新 toggle 一次才会下发新 bundle。
 
