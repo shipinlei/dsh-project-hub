@@ -1,0 +1,4 @@
+# dsh-project-hub bundle patch: inserts this plugin into a profile's layer stack.
+- insert:
+    - id: dsh-project-hub
+      name: 'dsh-project-hub'

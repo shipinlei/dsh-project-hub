@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Project workbench",
+    "description": "Organise sessions by workspace (project): share memory and settings inside a project, start a session in the project, and inspect its rules and memory scope."
+  }
+}

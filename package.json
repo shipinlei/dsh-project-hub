@@ -1,0 +1,43 @@
+{
+  "name": "dsh-project-hub",
+  "version": "0.1.0",
+  "description": "DSH 项目工作台：按工作区（项目）组织会话，项目内共享记忆与设定。Project workbench for DeepSeek Harness.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "icon": "icon.svg",
+  "engines": {
+    "dsh": ">=0.2.0-rc.2 <0.3.0-0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "client",
+    "locale",
+    "docs",
+    "cordis.patch.yml",
+    "icon.svg",
+    "README.md"
+  ]
+}
