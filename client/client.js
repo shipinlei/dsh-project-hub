@@ -119,6 +119,13 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 		memoryDisableFailed: ["切换失败：", "Switch failed: "],
 		memoryUnavailable: ["读不到记忆设置：", "Cannot read memory settings: "],
 		memoryNoInfo: ["接口未返回记忆状态", "the API returned no memory state"],
+		sidebarView: ["侧栏会话排列", "Sidebar session order"],
+		sidebarViewDesc: ["插件启动时把侧栏切成「按项目（工作区）」分组，组内按最近更新时间排列；Claude 风格皮肤的日期视图会一并关掉。", "At startup the sidebar is grouped by project (workspace), newest sessions first; the Claude-style date view is switched off too."],
+		sidebarViewDescOff: ["已设为不干预：侧栏保持当前排法，插件启动时不再自动切换。", "Auto-switch is off: the sidebar keeps its current order at startup."],
+		groupByProject: ["按项目分组", "Group by project"],
+		leaveAlone: ["不干预", "Leave as is"],
+		grouped: ["已按项目分组", "Grouped by project"],
+		groupFailed: ["切换失败：", "Switch failed: "],
 		memoryEnableFailed: ["启用失败：", "Enable failed: "],
 		description: ["描述", "Description"],
 		descriptionPlaceholder: ["这个项目是做什么的（显示在项目卡片上）", "What this project is for (shown on the project card)"],
@@ -360,6 +367,24 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 				props.error ? h("span", { style: S.errorText }, t("memoryEnableFailed") + props.error) : null));
 	}
 
+	/* ── 侧栏排列状态条 ───────────────────────────────────── */
+	function SidebarViewBar(props) {
+		var t = props.t;
+		var off = props.pref === "off";
+		return h("div", { style: S.memoryBar },
+			off ? null : h("span", { style: S.statusDot }),
+			h("div", { style: S.memoryMain },
+				h("div", { style: S.memoryTitle }, t("sidebarView")),
+				h("div", { style: S.muted }, off ? t("sidebarViewDescOff") : t("sidebarViewDesc"))),
+			h("div", { style: S.memoryActions },
+				props.message
+					? h("span", { style: props.message.ok ? S.okText : S.errorText },
+						props.message.ok ? t("grouped") : t("groupFailed") + (props.message.error || ""))
+					: null,
+				h(Button, { onClick: props.onGroup }, t("groupByProject")),
+				h(Button, { onClick: props.onLeave }, t("leaveAlone"))));
+	}
+
 	/* ── 会话行 ───────────────────────────────────────────── */
 	function SessionRow(props) {
 		var [hover, setHover] = react.useState(false);
@@ -532,6 +557,8 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 		var [memError, setMemError] = react.useState(null);
 		var [copyState, setCopyState] = react.useState(null);
 		var [errorBanner, setErrorBanner] = react.useState(null);
+		var [sidebarPref, setSidebarPref] = react.useState(typeof props.sidebarPref === "string" ? props.sidebarPref : "on");
+		var [groupMsg, setGroupMsg] = react.useState(null);
 
 		// 宿主注入的 standardProps 选择器钩子；缺失时降级为空数据（不崩溃）
 		var workspaces = useWorkspaces(selectWorkspaceItems) || [];
@@ -686,6 +713,23 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 			}
 		}
 
+		// 侧栏排列：立即把宿主侧栏切回「按工作区（项目）」分组
+		function groupSidebar() {
+			try {
+				if (typeof props.groupSidebar === "function") props.groupSidebar();
+				if (aliveRef.current) { setSidebarPref("on"); setGroupMsg({ ok: true }); }
+				if (typeof props.saveSidebarPref === "function") props.saveSidebarPref("on");
+			} catch (error) {
+				if (aliveRef.current) setGroupMsg({ ok: false, error: messageOf(error) });
+			}
+		}
+
+		// 不干预：保留用户当前排法，插件启动时不再自动切换
+		function leaveSidebarAlone() {
+			if (typeof props.saveSidebarPref === "function") props.saveSidebarPref("off");
+			if (aliveRef.current) { setSidebarPref("off"); setGroupMsg(null); }
+		}
+
 		// 工作区 + 项目元数据合成卡片数据，按最近活跃倒序
 		var stateData = query.data;
 		var projectsMeta = (stateData && stateData.projects) || {};
@@ -755,6 +799,7 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 			stateData
 				? h(MemoryBar, { t: t, memory: stateData.memory, busy: memBusy, error: memError, onEnable: enableProjectMemory, onDisable: disableProjectMemory })
 				: null,
+			h(SidebarViewBar, { t: t, pref: sidebarPref, message: groupMsg, onGroup: groupSidebar, onLeave: leaveSidebarAlone }),
 			errorBanner
 				? h("div", { style: S.errorBanner },
 					h("span", { style: S.errorText }, errorBanner),
@@ -822,6 +867,8 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 				services.uiWorkspace = scoped.uiWorkspace || null;
 				services.remote = scoped.remote || null;
 				beacon("services-ok", { sessions: !!services.sessions, uiWorkspace: !!services.uiWorkspace, remote: !!services.remote });
+				// 服务就绪后把侧栏切回「按项目（工作区）」分组（用户选「不干预」时跳过）
+				enforceSidebarGrouping();
 			});
 		} catch (error) {
 			console.warn("[dsh-project-hub] 注入宿主服务失败", error);
@@ -847,6 +894,112 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 			}
 			return null;
 		}
+
+		/* ── 侧栏会话排列：按项目（工作区）分组 ─────────────────
+		 * 侧栏列表的排法由官方 ui-workspace 的 view store 持有，服务只暴露写口
+		 * uiWorkspace.view。Claude 风格皮肤默认开「日期视图」：先存下原分组，
+		 * 把 store 强改为 groupBy=flat，再在 DOM 上画日期分段；它每个页面加载都会
+		 * 重新打开，并在同步循环里把 groupBy 改回 flat。所以要先把皮肤切回去
+		 * （派发它自己的开关事件，它会恢复原分组），再写 view store。
+		 * 用户选「不干预」后不再自动切换（偏好存本插件自己的 localStorage 键）。 */
+		var SIDEBAR_PREF_KEY = "dsh-project-hub.sidebar-grouping.v1";
+		var DATE_VIEW_ATTR = "data-dsh-claude-date-groups";
+		var DATE_VIEW_EVENT = "dsh-claude-toggle-date-view";
+		var groupingDisposed = false;
+
+		function readSidebarPref() {
+			try {
+				return window.localStorage.getItem(SIDEBAR_PREF_KEY) === "off" ? "off" : "on";
+			} catch (error) { return "on"; }
+		}
+
+		function writeSidebarPref(value) {
+			try {
+				window.localStorage.setItem(SIDEBAR_PREF_KEY, value === "off" ? "off" : "on");
+				return true;
+			} catch (error) { return false; }
+		}
+
+		function sidebarViewActions() {
+			var uiWorkspace = readService("uiWorkspace");
+			var view = uiWorkspace && uiWorkspace.view;
+			return view && typeof view.setGroupBy === "function" ? view : null;
+		}
+
+		function dateViewActive() {
+			try {
+				return !!(typeof document !== "undefined" && document.body
+					&& typeof document.body.hasAttribute === "function"
+					&& document.body.hasAttribute(DATE_VIEW_ATTR));
+			} catch (error) { return false; }
+		}
+
+		function dispatchDateViewToggle() {
+			var EventCtor = null;
+			try {
+				if (typeof window !== "undefined" && typeof window.CustomEvent === "function") EventCtor = window.CustomEvent;
+			} catch (error) { EventCtor = null; }
+			if (!EventCtor && typeof CustomEvent === "function") EventCtor = CustomEvent;
+			if (!EventCtor) return false;
+			document.dispatchEvent(new EventCtor(DATE_VIEW_EVENT));
+			return true;
+		}
+
+		function leaveDateView() {
+			if (!dateViewActive()) return false;
+			try {
+				dispatchDateViewToggle();
+			} catch (error) {
+				beacon("sidebar-grouping-error", { phase: "leave-date-view", message: messageOf(error).slice(0, 200) });
+				return false;
+			}
+			return !dateViewActive();
+		}
+
+		function groupSidebar(source) {
+			var view = sidebarViewActions();
+			if (!view) throw new Error("当前宿主未提供侧栏视图接口（uiWorkspace.view.setGroupBy）");
+			var leftDateView = leaveDateView();
+			view.setGroupBy("workspace");
+			beacon("sidebar-grouping", { source: source || "manual", leftDateView: leftDateView, dateView: dateViewActive() });
+			return { leftDateView: leftDateView };
+		}
+
+		// 皮肤可能在插件之后才装上日期视图，因此首屏多次重试；命中即停。
+		function enforceSidebarGrouping() {
+			if (readSidebarPref() === "off") { beacon("sidebar-grouping-skip", { pref: "off" }); return; }
+			var delays = [0, 300, 800, 1600, 3000, 5000, 8000];
+			var initialApplied = false;
+			delays.forEach(function (delay, index) {
+				setTimeout(function () {
+					if (groupingDisposed || readSidebarPref() === "off") return;
+					try {
+						var view = sidebarViewActions();
+						if (!view) return;
+						if (dateViewActive()) {
+							leaveDateView();
+							view.setGroupBy("workspace");
+							initialApplied = true;
+							beacon("sidebar-grouping", { source: "auto", delay: delay, attempt: index, leftDateView: !dateViewActive() });
+							return;
+						}
+						if (!initialApplied) {
+							initialApplied = true;
+							view.setGroupBy("workspace");
+							beacon("sidebar-grouping", { source: "auto-initial", delay: delay });
+						}
+					} catch (error) {
+						beacon("sidebar-grouping-error", { delay: delay, message: messageOf(error).slice(0, 200) });
+					}
+				}, delay);
+			});
+		}
+
+		try {
+			ctx.effect(function () {
+				return function () { groupingDisposed = true; };
+			}, NS + ": sidebar grouping");
+		} catch (error) { /* 无 effect 时忽略 */ }
 
 		// 新建会话：create → 套默认模型 → 打开；每一步失败都抛可读错误交面板显示
 		async function createSession(workspaceId, defaults) {
@@ -938,6 +1091,9 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 								t: t,
 								createSession: createSession,
 								openSession: openSession,
+								groupSidebar: function () { return groupSidebar("panel"); },
+								sidebarPref: readSidebarPref(),
+								saveSidebarPref: writeSidebarPref,
 								report: reportClient,
 								servicesReady: servicesReady()
 							};

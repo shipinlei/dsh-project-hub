@@ -113,7 +113,7 @@ check('插件导出 name / inject / apply', () => {
 const registrations = []
 const disposers = []
 const localeDict = {}
-const calls = { created: [], selection: null, opened: [] }
+const calls = { created: [], selection: null, opened: [], groupBy: [] }
 const services = {
   sessions: {
     create: async (args) => { calls.created.push(args); return 'session-new-1' },
@@ -124,7 +124,12 @@ const services = {
       selectModel: async (args) => { calls.selection = args; return { ok: true, value: undefined } },
     },
   },
-  uiWorkspace: { openSession: (id) => calls.opened.push(id), startSession: () => {} },
+  // 官方 ui-workspace 的 view write set（侧栏分组模式）
+  uiWorkspace: {
+    openSession: (id) => calls.opened.push(id),
+    startSession: () => {},
+    view: { setGroupBy: (mode) => calls.groupBy.push(mode) },
+  },
   layout: { panelInfo: { getSnapshot: () => ({ activePanelId: null }) }, selectPanel: () => {} },
 }
 const ctx = {
@@ -140,7 +145,20 @@ const ctx = {
     register(options, Component) { registrations.push({ options, Component }); return () => {} },
   },
 }
+/* ── 5b. 模拟 Claude 风格皮肤的日期视图（DOM 属性 + 开关事件） ── */
+let dateViewToggles = 0
+window.document.body.setAttribute('data-dsh-claude-date-groups', '')
+window.document.addEventListener('dsh-claude-toggle-date-view', () => {
+  dateViewToggles += 1
+  window.document.body.removeAttribute('data-dsh-claude-date-groups')
+})
+
 plugin.apply(ctx)
+await wait(60)
+check('启动时关掉皮肤日期视图并把侧栏切回按工作区分组', () => {
+  if (dateViewToggles < 1) throw new Error(`日期视图开关事件触发 ${dateViewToggles} 次`)
+  if (!calls.groupBy.includes('workspace')) throw new Error(`setGroupBy 调用：${calls.groupBy.join(',') || '(空)'}`)
+})
 
 const main = registrations.find((entry) => entry.options.name === 'main')
 const row = registrations.find((entry) => entry.options.name === 'sidebar.panellist')
@@ -193,6 +211,28 @@ check('上报了 panel-view（客户端自检通道）', () => {
   if (!report) throw new Error('没有 panel-view 上报')
   if (report.body.data.workspaces !== 4) throw new Error(`workspaces = ${report.body.data.workspaces}`)
   if (typeof report.body.data.services?.sessions !== 'boolean') throw new Error('缺少 services 能力位')
+})
+
+/* ── 6b. 侧栏排列状态条：按项目分组 / 不干预 ─────────────── */
+const findButton = (needle) => [...container.querySelectorAll('button')]
+  .find((button) => (button.textContent ?? '').includes(needle))
+check('面板显示「侧栏会话排列」并提供按项目分组 / 不干预', () => {
+  if (!text().includes('侧栏会话排列')) throw new Error('缺少侧栏排列状态条')
+  if (!findButton('按项目分组')) throw new Error('缺少「按项目分组」按钮')
+  if (!findButton('不干预')) throw new Error('缺少「不干预」按钮')
+})
+const groupBefore = calls.groupBy.length
+findButton('按项目分组').dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+await wait(60)
+check('点「按项目分组」→ 重新把侧栏切到 workspace 分组', () => {
+  if (calls.groupBy.length <= groupBefore) throw new Error(`setGroupBy 未再调用：${calls.groupBy.join(',')}`)
+  if (calls.groupBy[calls.groupBy.length - 1] !== 'workspace') throw new Error(`最后一次 mode = ${calls.groupBy[calls.groupBy.length - 1]}`)
+})
+findButton('不干预').dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+await wait(60)
+check('点「不干预」→ 持久化偏好 off 并显示不干预文案', () => {
+  if (window.localStorage.getItem('dsh-project-hub.sidebar-grouping.v1') !== 'off') throw new Error('偏好未写入')
+  if (!text().includes('已设为不干预')) throw new Error('缺少不干预文案')
 })
 
 /* ── 7. 展开会话 + 点击新建会话 ─────────────────────────── */
