@@ -35,7 +35,7 @@ const wait = (ms = 20) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /* ── 1. jsdom 环境 ─────────────────────────────────────── */
 const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {
-  url: 'http://127.0.0.1:14215/',
+  url: 'http://127.0.0.1:2586/',
   pretendToBeVisual: true,
 })
 const { window } = dom
@@ -48,12 +48,12 @@ globalThis.MouseEvent = window.MouseEvent
 globalThis.IS_REACT_ACT_ENVIRONMENT = false
 
 /* ── 2. 假宿主数据（与真实 workspace.json / 会话行同形） ── */
-const SOLO = 'D:\\projects\\dsh插件\\项目组开发插件'
+const SOLO = 'D:\\dev\\dsh-project-hub'
 const now = Date.now()
 const workspaces = [
-  { workspaceId: 'ws-default', path: 'C:\\Users\\Administrator\\Documents\\deepseek-harness\\default-workspace', title: 'default-workspace', sessionIds: ['s-default'], createdAt: '2026-10-31T14:39:30.199Z', updatedAt: '2026-11-10T06:30:00.000Z' },
-  { workspaceId: 'ws-order', path: 'D:\\projects\\杨忠舜项目\\订单对账系统3.0', title: '订单对账系统3.0', sessionIds: ['s-order-1', 's-order-2'], createdAt: '2026-11-09T02:07:43.439Z', updatedAt: '2026-11-10T06:23:31.233Z' },
-  { workspaceId: 'ws-team', path: 'D:\\projects\\dsh插件\\开发团队工作流', title: '开发团队工作流', sessionIds: ['s-team'], createdAt: '2026-11-10T07:01:55.979Z', updatedAt: '2026-11-10T07:04:36.061Z' },
+  { workspaceId: 'ws-default', path: 'C:\\Users\\<you>\\Documents\\deepseek-harness\\default-workspace', title: 'default-workspace', sessionIds: ['s-default'], createdAt: '2026-10-31T14:39:30.199Z', updatedAt: '2026-11-10T06:30:00.000Z' },
+  { workspaceId: 'ws-order', path: 'D:\\projects\\order-service', title: '订单服务', sessionIds: ['s-order-1', 's-order-2'], createdAt: '2026-11-09T02:07:43.439Z', updatedAt: '2026-11-10T06:23:31.233Z' },
+  { workspaceId: 'ws-team', path: 'D:\\projects\\team-workflow', title: '团队工作流', sessionIds: ['s-team'], createdAt: '2026-11-10T07:01:55.979Z', updatedAt: '2026-11-10T07:04:36.061Z' },
   { workspaceId: 'ws-hub', path: SOLO, title: '项目组开发插件', sessionIds: ['s-hub'], createdAt: '2026-11-10T07:05:55.079Z', updatedAt: '2026-11-10T07:49:00.000Z' },
 ]
 const sessionsById = {
@@ -66,7 +66,7 @@ const sessionsById = {
 const statePayload = {
   ok: true,
   version: 1,
-  profileDir: 'C:\\Users\\Administrator\\.dsh\\profiles\\desktop',
+  profileDir: 'C:\\Users\\<you>\\.dsh\\profiles\\desktop',
   projects: {
     'ws-hub': { description: 'DSH 项目工作台插件', agentPreset: 'standard', provider: 'deepseek-official', model: 'deepseek-flash', reasoningEffort: 'high', updatedAt: '2026-11-10T07:49:00.000Z' },
   },

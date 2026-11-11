@@ -43,7 +43,7 @@ const react = {
 };
 
 globalThis.window = { __ModuleLoader__: { load(opts) { captured = opts; } } };
-globalThis.document = { baseURI: "http://127.0.0.1:14215/" };
+globalThis.document = { baseURI: "http://127.0.0.1:2586/" };
 Object.defineProperty(globalThis, "navigator", {
 	value: { clipboard: { writeText: async function () {} } },
 	configurable: true
