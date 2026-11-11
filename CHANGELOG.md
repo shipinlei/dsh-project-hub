@@ -24,3 +24,4 @@
 - 修复客户端误用不存在的 `ctx.sessions.selectModel`，改走 `ctx.remote.session.selectModel`。
 - 修复桌面宿主（`dsh-app://`）请求不带浏览器凭证导致面板 401：desktop profile 下跳过 `connection` 网关（与官方 `dshmarket` 一致）。
 - 修复 `ctx.get('remote')` 未 inject 访问 `.session` 导致整次插件激活回滚、侧栏入口不出现；locale / 槽位注册改为幂等并加入诊断信标。
+- 修复 HMR 热重载后宿主 locale 字典未更新（重复注册被忽略）导致新增文案显示原始 key（如 `sidebarView` / `groupByProject`）：`t()` 兜底到插件内中文文案，字典陈旧时不再露 key。

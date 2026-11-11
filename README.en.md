@@ -110,7 +110,7 @@ node scripts/test-host.mjs                                  # host contract, 21 
 node scripts/test-client.mjs client/client.js               # bundle load/registration smoke
 node scripts/test-client-interaction.mjs client/client.js   # panel interaction flow
 # real React 18 + jsdom offscreen render (deps installed to a temp dir, see the script header)
-$env:PH_RENDER_MODULES="$env:TEMP\ph-render"; node scripts/test-client-dom.mjs client/client.js  # 16 checks
+$env:PH_RENDER_MODULES="$env:TEMP\ph-render"; node scripts/test-client-dom.mjs client/client.js  # 17 checks
 ```
 
 - Design decisions: [docs/设计结论.md](docs/设计结论.md) (Chinese)

@@ -856,7 +856,16 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 		} catch (error) {
 			beacon("locale-error", { message: messageOf(error).slice(0, 200) });
 		}
-		var t = ctx.locale.bind(NS);
+		// 宿主 locale 字典在 HMR 重载时可能仍是第一次注册的旧版本（重复注册被忽略），
+		// 新加的文案 key 会原样显示成 key（如 sidebarView）。这里兜底到本文件的中文文案。
+		var boundT = ctx.locale.bind(NS);
+		var t = function (key, vars) {
+			var value = boundT(key, vars);
+			if ((value === key || value === undefined || value === null) && Object.prototype.hasOwnProperty.call(TEXT, key)) {
+				return TEXT[key][0];
+			}
+			return value;
+		};
 
 		// 宿主服务：优先 ctx.inject 注入，其次按需 ctx.get（缺失时组件显式报错）
 		var services = { sessions: null, uiWorkspace: null, remote: null };

@@ -113,7 +113,7 @@ node scripts/test-host.mjs                                  # 宿主契约，21 
 node scripts/test-client.mjs client/client.js               # bundle 加载/注册冒烟
 node scripts/test-client-interaction.mjs client/client.js   # 面板交互全链路
 # 真实 React 18 + jsdom 离屏渲染（依赖装到临时目录，见脚本头注释）
-$env:PH_RENDER_MODULES="$env:TEMP\ph-render"; node scripts/test-client-dom.mjs client/client.js  # 16 项
+$env:PH_RENDER_MODULES="$env:TEMP\ph-render"; node scripts/test-client-dom.mjs client/client.js  # 17 项
 ```
 
 - 设计决策：[docs/设计结论.md](docs/设计结论.md)

@@ -267,6 +267,18 @@ check('项目规则请求带 workspaceId 并渲染 AGENTS.md 预览', () => {
   if (!text().includes('# 项目规则')) throw new Error('没有渲染规则片段')
 })
 
+/* ── 7c. HMR 陈旧 locale 字典兜底：不显示原始 key ─────────── */
+// 模拟热重载后宿主 locale 字典仍是旧版本（缺新加的 key）
+delete localeDict['dsh-project-hub'].zh.sidebarView
+delete localeDict['dsh-project-hub'].zh.sidebarViewDesc
+delete localeDict['dsh-project-hub'].zh.groupByProject
+findButton('刷新').dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+await wait(150)
+check('locale 字典陈旧时回退中文文案，不显示原始 key', () => {
+  if (text().includes('sidebarView')) throw new Error('界面显示了原始 key：sidebarView')
+  if (!text().includes('侧栏会话排列')) throw new Error('缺少兜底中文「侧栏会话排列」')
+})
+
 /* ── 8. 汇总 ─────────────────────────────────────────────── */
 root.unmount()
 dom.window.close()
