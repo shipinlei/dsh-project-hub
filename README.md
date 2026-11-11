@@ -23,7 +23,8 @@ DSH 原生已经能按工作区（workspace）分组显示会话，但：
 - 「新建会话」：在项目目录里开新会话，并套用该项目的默认 preset / 模型 / 推理强度（创建后自动 `selectModel` 并跳转）；
 - 「设置」：编辑项目描述与默认设置（存 `<profile>/.dsh-project-hub/state.json`，键 = workspaceId）；
 - 「项目规则」：按官方发现顺序预览 `AGENTS.md` / `CLAUDE.md`（全局 → 项目根，含 `.local` 叠加），不读不存在的文件；
-- 记忆状态条：显示当前 Mnemon 记忆作用域；未隔离时一键切换为「按工作区隔离」（`storageScope=workspaces`，`runtimeUserScope=global`）。
+- 记忆状态条：显示当前 Mnemon 记忆作用域；未隔离时一键切换为「按工作区隔离」（`storageScope=workspaces`，`runtimeUserScope=global`）；
+- 侧栏会话排列：插件启动时把侧栏切到官方「按项目（工作区）」分组，组内按最近更新时间倒序（即项目内按时间排列）；若装了 Claude 风格皮肤，会先关掉它的「日期视图」（今天/昨天/星期几分段）再切分组。面板「侧栏会话排列」里可点「不干预」关闭自动切换（偏好存本插件 localStorage，默认开）。
 
 ## 边界（刻意不做）
 
