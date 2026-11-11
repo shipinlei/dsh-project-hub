@@ -97,7 +97,9 @@ function makeResponse() {
 }
 
 /** 构造假宿主：services 表 + 路由捕获，形状对齐 cordis 的 ctx 子集。 */
-function createFakeHost() {
+function createFakeHost(options = {}) {
+  const profileName = options.profileName ?? 'desktop'
+  const rejection = options.rejection
   const routes = new Map()
   const registered = []
   const disposers = []
@@ -141,7 +143,9 @@ function createFakeHost() {
 
   services.set('settings', settings)
   services.set('workspaceRegistry', workspaceRegistry)
-  services.set('profileContext', { name: 'desktop', dir: profileDir })
+  services.set('profileContext', { name: profileName, dir: profileDir })
+  // 可选：模拟 connection.requestRejection 返回 401/403（宿主鉴权网关）。
+  if (rejection !== undefined) services.set('connection', { requestRejection: () => rejection })
 
   const webServer = {
     register(route) {
@@ -243,6 +247,47 @@ async function main() {
     assert.equal(remoteRes.json.ok, false)
   })
 
+  await test('桌面宿主：网关 401 时放行并记录 auth-bypassed', async () => {
+    const desktopHost = createFakeHost({ profileName: 'desktop', rejection: 401 })
+    apply(desktopHost.ctx)
+    const res = await request(desktopHost, 'GET', `${API}/state`)
+    assert.equal(res.status, 200)
+    const health = await request(desktopHost, 'GET', `${API}/health`)
+    assert.equal(health.json.desktopHost, true)
+    assert.equal(health.json.profileName, 'desktop')
+    assert.equal(health.json.clientEvents.last.event, 'auth-bypassed')
+    assert.equal(health.json.clientEvents.last.data.path, `${API}/state`)
+  })
+
+  await test('非桌面 profile：网关 401 时拒绝并记录 auth-rejected', async () => {
+    const webHost = createFakeHost({ profileName: 'web', rejection: 401 })
+    apply(webHost.ctx)
+    const res = await request(webHost, 'GET', `${API}/state`)
+    assert.equal(res.status, 401)
+    const health = await request(webHost, 'GET', `${API}/health`)
+    assert.equal(health.json.desktopHost, false)
+    assert.equal(health.json.clientEvents.last.event, 'auth-rejected')
+  })
+
+  await test('POST /client-report 非桌面 + 非回环请求 403', async () => {
+    const webHost = createFakeHost({ profileName: 'web' })
+    apply(webHost.ctx)
+    const remoteReq = makeRequest('POST', `${API}/client-report`, JSON.stringify({ event: 'mounted' }))
+    remoteReq.socket.remoteAddress = '10.0.0.7'
+    const remoteRes = makeResponse()
+    await webHost.routes.get(`${API}/client-report`)(remoteReq, remoteRes)
+    assert.equal(remoteRes.statusCode, 403)
+  })
+
+  await test('POST /client-report 桌面宿主放宽（无 socket 的内进程请求也可上报）', async () => {
+    const desktopReq = makeRequest('POST', `${API}/client-report`, JSON.stringify({ event: 'mounted' }))
+    delete desktopReq.socket
+    const desktopRes = makeResponse()
+    await host.routes.get(`${API}/client-report`)(desktopReq, desktopRes)
+    assert.equal(desktopRes.statusCode, 200)
+    assert.equal(desktopRes.json.event, 'mounted')
+  })
+
   await test('POST /client-report 记录事件并在 /health 可见，非法 event 400', async () => {
     const posted = await request(host, 'POST', `${API}/client-report`, JSON.stringify({
       event: 'panel-view',
@@ -253,7 +298,7 @@ async function main() {
     assert.equal(posted.json.event, 'panel-view')
 
     const health = await request(host, 'GET', `${API}/health`)
-    assert.equal(health.json.clientEvents.count, 1)
+    assert.ok(health.json.clientEvents.count >= 1)
     assert.equal(health.json.clientEvents.last.event, 'panel-view')
     assert.equal(health.json.clientEvents.last.data.workspaces, 4)
     assert.equal(typeof health.json.clientEvents.last.at, 'string')
