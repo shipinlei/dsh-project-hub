@@ -9,7 +9,9 @@
 [![platform](https://img.shields.io/badge/platform-Web%20%2F%20Desktop-lightgrey)](#兼容性)
 [![CI](https://github.com/shipinlei/dsh-project-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/shipinlei/dsh-project-hub/actions/workflows/ci.yml)
 
-![项目工作台面板](docs/images/project-panel.png)
+<img src="docs/images/social-preview.png" alt="项目工作台：侧栏按项目分组 + 项目面板" width="900">
+
+> 截图为真实界面；其中本机路径已打码。
 
 ## 它解决什么
 

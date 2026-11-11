@@ -8,7 +8,9 @@ A Web client plugin for [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/
 [![DSH](https://img.shields.io/badge/DSH-%3E%3D0.2.0--rc.2-4c8bf5)](https://github.com/deepseek-ai/deepseek-harness)
 [![platform](https://img.shields.io/badge/platform-Web%20%2F%20Desktop-lightgrey)](#compatibility)
 
-![Project workbench panel](docs/images/project-panel.png)
+<img src="docs/images/social-preview.png" alt="Project workbench: sidebar grouped by project and the project panel" width="900">
+
+> Real UI screenshot; local file paths are redacted.
 
 ## Why
 
