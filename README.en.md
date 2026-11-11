@@ -62,7 +62,7 @@ plugin_manager(action="install_bundle", target="<absolute path to this repositor
 ### Option B — DSH CLI
 
 ```powershell
-git clone https://github.com/<your-github-name>/dsh-project-hub.git
+git clone https://github.com/shipinlei/dsh-project-hub.git
 dsh plugin --profile desktop add "link:<absolute path to this repository>"
 ```
 

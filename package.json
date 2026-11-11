@@ -3,18 +3,18 @@
   "version": "0.1.0",
   "description": "DSH 项目工作台：按工作区（项目）组织会话，项目内共享记忆与设定。Project workbench for DeepSeek Harness.",
   "license": "MIT",
-  "author": "<your-github-name>",
+  "author": "shipinlei",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
   "icon": "icon.svg",
-  "homepage": "https://github.com/<your-github-name>/dsh-project-hub#readme",
+  "homepage": "https://github.com/shipinlei/dsh-project-hub#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/<your-github-name>/dsh-project-hub.git"
+    "url": "git+https://github.com/shipinlei/dsh-project-hub.git"
   },
   "bugs": {
-    "url": "https://github.com/<your-github-name>/dsh-project-hub/issues"
+    "url": "https://github.com/shipinlei/dsh-project-hub/issues"
   },
   "keywords": [
     "dsh",

@@ -7,7 +7,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-%3E%3D0.2.0--rc.2-4c8bf5)](https://github.com/deepseek-ai/deepseek-harness)
 [![platform](https://img.shields.io/badge/platform-Web%20%2F%20Desktop-lightgrey)](#兼容性)
-[![CI](https://github.com/<your-github-name>/dsh-project-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/<your-github-name>/dsh-project-hub/actions/workflows/ci.yml)
+[![CI](https://github.com/shipinlei/dsh-project-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/shipinlei/dsh-project-hub/actions/workflows/ci.yml)
 
 ![项目工作台面板](docs/images/project-panel.png)
 
@@ -65,7 +65,7 @@ plugin_manager(action="install_bundle", target="<本仓库绝对路径>")
 ### 方式二：DSH CLI
 
 ```powershell
-git clone https://github.com/<your-github-name>/dsh-project-hub.git
+git clone https://github.com/shipinlei/dsh-project-hub.git
 dsh plugin --profile desktop add "link:<本仓库绝对路径>"
 ```
 

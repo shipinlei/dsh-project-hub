@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/deepseek-ai/deepseek-harness/issues
     about: DSH 核心（会话、宿主、官方 UI）的问题请提到官方仓库
   - name: 使用与设计讨论
-    url: https://github.com/<your-github-name>/dsh-project-hub/discussions
+    url: https://github.com/shipinlei/dsh-project-hub/discussions
     about: 安装、用法、设计取舍的讨论（若仓库已开启 Discussions）
