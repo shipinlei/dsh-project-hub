@@ -28,6 +28,54 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 	var HOUR = 60 * MINUTE;
 	var DAY = 24 * HOUR;
 
+	/* ── 诊断信标 ─────────────────────────────────────────────
+	 * 把「这段代码执行到了哪一步」写回宿主（POST /client-report + 图片信标
+	 * GET /beacon 双通道），供 /health.clientEvents 排查客户端加载问题。
+	 * 任何失败都静默，绝不影响面板。 */
+	function beacon(stage, info) {
+		try {
+			var href = "";
+			var protocol = "";
+			try {
+				href = typeof location === "undefined" ? "" : String(location.href).slice(0, 300);
+				protocol = typeof location === "undefined" ? "" : String(location.protocol);
+			} catch (error) { /* 忽略 */ }
+			var data = { stage: stage, info: info === undefined ? null : info, href: href, protocol: protocol };
+			try {
+				if (typeof fetch === "function") {
+					var pending = fetch(API + "client-report", {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({ event: "mounted", data: data }),
+						keepalive: true
+					});
+					if (pending && typeof pending.catch === "function") pending.catch(function () {});
+				}
+			} catch (error) { /* 忽略 */ }
+			try {
+				var img = new Image();
+				img.src = API + "beacon?stage=" + encodeURIComponent(stage);
+			} catch (error) { /* 忽略 */ }
+		} catch (error) { /* 信标失败绝不影响主线 */ }
+	}
+
+	beacon("factory-start");
+	try {
+		if (typeof window !== "undefined" && window && typeof window.addEventListener === "function") {
+			window.addEventListener("error", function (event) {
+				try {
+					var filename = String((event && event.filename) || "");
+					if (filename.indexOf("dsh-project-hub") < 0) return;
+					beacon("window-error", {
+						message: String((event && event.message) || "").slice(0, 300),
+						filename: filename.slice(0, 200),
+						line: (event && event.lineno) || 0
+					});
+				} catch (error) { /* 忽略 */ }
+			});
+		}
+	} catch (error) { /* 忽略 */ }
+
 	/* ── 文案：每项 [中文, English]，两种语言都必须完整 ───── */
 	var TEXT = {
 		nav: ["项目", "Projects"],
@@ -735,18 +783,49 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 
 	/* ── 插件装配 ─────────────────────────────────────────── */
 	function apply(ctx) {
-		ctx.effect(function () { ctx.locale.register(NS, { zh: zh, en: en }); }, NS + ": locale dictionaries");
+		try {
+			return applyInner(ctx);
+		} catch (error) {
+			beacon("apply-error", {
+				message: messageOf(error).slice(0, 300),
+				stack: String((error && error.stack) || "").slice(0, 600)
+			});
+			throw error;
+		}
+	}
+
+	function applyInner(ctx) {
+		beacon("apply-start");
+		// HMR 重载会再次执行 apply：locale 命名空间可能已注册（旧 fiber 未清理），
+		// 重复注册会抛错并让整个面板消失，所以这里必须幂等。
+		try {
+			ctx.effect(function () {
+				try {
+					ctx.locale.register(NS, { zh: zh, en: en });
+				} catch (error) {
+					beacon("locale-duplicate", { message: messageOf(error).slice(0, 200) });
+				}
+				return function () {};
+			}, NS + ": locale dictionaries");
+			beacon("locale-ok");
+		} catch (error) {
+			beacon("locale-error", { message: messageOf(error).slice(0, 200) });
+		}
 		var t = ctx.locale.bind(NS);
 
 		// 宿主服务：优先 ctx.inject 注入，其次按需 ctx.get（缺失时组件显式报错）
-		var services = { sessions: null, uiWorkspace: null };
+		var services = { sessions: null, uiWorkspace: null, remote: null };
 		try {
-			ctx.inject(["sessions", "uiWorkspace"], function (scoped) {
+			// remote 必须走 inject：直接 ctx.get('remote') 后访问 .session 会被 cordis 拒绝
+			ctx.inject(["sessions", "uiWorkspace", "remote"], function (scoped) {
 				services.sessions = scoped.sessions || null;
 				services.uiWorkspace = scoped.uiWorkspace || null;
+				services.remote = scoped.remote || null;
+				beacon("services-ok", { sessions: !!services.sessions, uiWorkspace: !!services.uiWorkspace, remote: !!services.remote });
 			});
 		} catch (error) {
-			console.warn("[dsh-project-hub] 注入 sessions/uiWorkspace 失败", error);
+			console.warn("[dsh-project-hub] 注入宿主服务失败", error);
+			beacon("services-error", { message: messageOf(error).slice(0, 200) });
 		}
 
 		var layout = null;
@@ -821,53 +900,78 @@ window.__ModuleLoader__.load({ id: "dsh-project-hub", factory: (require) => {
 		}
 
 		function servicesReady() {
-			var remote = readService("remote");
+			var modelSelection = false;
+			try {
+				var remote = readService("remote");
+				modelSelection = !!(remote && remote.session && typeof remote.session.selectModel === "function");
+			} catch (error) {
+				modelSelection = false;
+			}
 			return {
 				sessions: !!readService("sessions"),
 				uiWorkspace: !!readService("uiWorkspace"),
 				layout: !!layout,
-				modelSelection: !!(remote && remote.session && typeof remote.session.selectModel === "function")
+				modelSelection: modelSelection
 			};
 		}
 
-		ctx.slots.inject("main", function () {
-			return ctx.slots.inject("sidebar.panellist", function () {
-				var disposePanel = ctx.slots.register({
-					name: "main", key: PANEL_ID, locale: NS,
-					inject: function () {
-						return {
-							t: t,
-							createSession: createSession,
-							openSession: openSession,
-							report: reportClient,
-							servicesReady: servicesReady()
-						};
-					}
-				}, ProjectHubPanel);
+		// 槽位注册同样要幂等：HMR 重载时重复 key/id 可能抛错。
+		function registerSafely(options, component, label) {
+			try {
+				return ctx.slots.register(options, component);
+			} catch (error) {
+				beacon("register-error", { label: label, message: messageOf(error).slice(0, 200) });
+				return function () {};
+			}
+		}
 
-				var disposeRow = ctx.slots.register({
-					name: "sidebar.panellist", id: PANEL_ID, order: 4, locale: NS,
-					label: function () { return t("nav"); }
-				}, function (owner) { return h(FolderIcon, owner || {}); });
+		try {
+			beacon("slots-wait", { hasSlots: !!(ctx && ctx.slots) });
+			ctx.slots.inject("main", function () {
+				beacon("main-slot-ready");
+				return ctx.slots.inject("sidebar.panellist", function () {
+					beacon("panellist-slot-ready");
+					var disposePanel = registerSafely({
+						name: "main", key: PANEL_ID, locale: NS,
+						inject: function () {
+							return {
+								t: t,
+								createSession: createSession,
+								openSession: openSession,
+								report: reportClient,
+								servicesReady: servicesReady()
+							};
+						}
+					}, ProjectHubPanel, "panel");
 
-				console.warn("[dsh-project-hub] client mounted (panel + sidebar entry)");
-				reportClient("mounted", { panelId: PANEL_ID, services: servicesReady() });
+					var disposeRow = registerSafely({
+						name: "sidebar.panellist", id: PANEL_ID, order: 4, locale: NS,
+						label: function () { return t("nav"); }
+					}, function (owner) { return h(FolderIcon, owner || {}); }, "row");
 
-				return function () {
-					try {
-						if (layout && layout.panelInfo && layout.panelInfo.getSnapshot().activePanelId === PANEL_ID) layout.selectPanel(null);
-					} catch (error) {
-						/* 布局不支持时忽略 */
-					}
-					if (typeof disposeRow === "function") disposeRow();
-					if (typeof disposePanel === "function") disposePanel();
-				};
+					console.warn("[dsh-project-hub] client mounted (panel + sidebar entry)");
+					beacon("slots-registered", { panel: PANEL_ID });
+					reportClient("mounted", { panelId: PANEL_ID, services: servicesReady() });
+
+					return function () {
+						try {
+							if (layout && layout.panelInfo && layout.panelInfo.getSnapshot().activePanelId === PANEL_ID) layout.selectPanel(null);
+						} catch (error) {
+							/* 布局不支持时忽略 */
+						}
+						if (typeof disposeRow === "function") disposeRow();
+						if (typeof disposePanel === "function") disposePanel();
+					};
+				});
 			});
-		});
+		} catch (error) {
+			beacon("slots-error", { message: messageOf(error).slice(0, 200) });
+		}
 	}
 
 	exports.name = name;
 	exports.inject = inject;
 	exports.apply = apply;
+	beacon("factory-done", { inject: inject });
 	return module.exports;
 }});

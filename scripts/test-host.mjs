@@ -212,11 +212,11 @@ async function main() {
   const host = createFakeHost()
   apply(host.ctx)
 
-  await test('apply 注册 6 条路由并写入 boot.json（含 profile 来源）', () => {
-    assert.equal(host.registered.length, 6)
+  await test('apply 注册 7 条路由并写入 boot.json（含 profile 来源）', () => {
+    assert.equal(host.registered.length, 7)
     assert.deepEqual(
       host.registered.map((route) => route.path).sort(),
-      [`${API}/state`, `${API}/project`, `${API}/rules`, `${API}/memory-scope`, `${API}/client-report`, `${API}/health`].sort(),
+      [`${API}/state`, `${API}/project`, `${API}/rules`, `${API}/memory-scope`, `${API}/client-report`, `${API}/beacon`, `${API}/health`].sort(),
     )
     const boot = JSON.parse(fs.readFileSync(path.join(profileDir, '.dsh-project-hub', 'boot.json'), 'utf8'))
     assert.equal(boot.profileDir, path.resolve(profileDir))
@@ -286,6 +286,16 @@ async function main() {
     await host.routes.get(`${API}/client-report`)(desktopReq, desktopRes)
     assert.equal(desktopRes.statusCode, 200)
     assert.equal(desktopRes.json.event, 'mounted')
+  })
+
+  await test('GET /beacon 记录阶段事件（204 + clientEvents 可见）', async () => {
+    const res = await request(host, 'GET', `${API}/beacon?stage=factory-start&href=dsh-app%3A%2F%2Fhost%2F`)
+    assert.equal(res.status, 204)
+    const health = await request(host, 'GET', `${API}/health`)
+    const last = health.json.clientEvents.last
+    assert.equal(last.event, 'mounted')
+    assert.equal(last.data.via, 'beacon')
+    assert.equal(last.data.stage, 'factory-start')
   })
 
   await test('POST /client-report 记录事件并在 /health 可见，非法 event 400', async () => {
