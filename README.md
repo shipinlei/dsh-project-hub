@@ -9,7 +9,7 @@
 [![platform](https://img.shields.io/badge/platform-Web%20%2F%20Desktop-lightgrey)](#兼容性)
 [![CI](https://github.com/shipinlei/dsh-project-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/shipinlei/dsh-project-hub/actions/workflows/ci.yml)
 
-<img src="docs/images/social-preview.png" alt="项目工作台：侧栏按项目分组 + 项目面板" width="900">
+<img src="docs/images/social-preview.png?v=20261111" alt="项目工作台：侧栏按项目分组 + 项目面板" width="900">
 
 > 截图为真实界面；其中本机路径已打码。
 
@@ -35,7 +35,7 @@ DSH 原生已经能按工作区（workspace）分组显示会话，但项目之�
 
 | 侧栏按项目分组 | 项目工作台 |
 |---|---|
-| ![侧栏按项目分组](docs/images/sidebar-grouped.png) | ![项目工作台](docs/images/project-panel.png) |
+| ![侧栏按项目分组](docs/images/sidebar-grouped.png?v=20261111) | ![项目工作台](docs/images/project-panel.png?v=20261111) |
 
 ## 功能
 
